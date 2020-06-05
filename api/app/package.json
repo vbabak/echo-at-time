@@ -1,0 +1,25 @@
+{
+    "name": "echotime-api",
+    "version": "1.0.0",
+    "description": "NodeJS Test API",
+    "main": "server.js",
+    "scripts": {
+        "test": "jest --silent --runInBand",
+        "start": "node server.js"
+    },
+    "author": "Vladyslav Babak",
+    "license": "MIT",
+    "dependencies": {
+        "koa": "^2.12.0",
+        "koa-bodyparser": "^4.3.0",
+        "koa-compress": "^4.0.1",
+        "koa-router": "^9.0.1",
+        "lodash": "^4.17.15",
+        "moment": "^2.26.0",
+        "redis": "^3.0.2"
+    },
+    "devDependencies": {
+        "jest": "^26.0.1",
+        "supertest": "^4.0.2"
+    }
+}
