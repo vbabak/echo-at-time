@@ -1,5 +1,7 @@
 "use strict";
 
+const sleep = require("../sleep");
+
 class EchoMessageStorage {
   constructor(redisClient) {
     this.redisClient = redisClient;
@@ -12,9 +14,14 @@ class EchoMessageStorage {
   }
 
   async save(time, message) {
-    await this.redisClient.cmd("zadd", [this.zset, "NX", time, time]);
     let list_key = this.getListKey(time);
+    let lock_id = await this.redisClient.lockKey(list_key);
+    if (!lock_id) {
+      return false;
+    }
+    await this.redisClient.cmd("zadd", [this.zset, "NX", time, time]);
     await this.redisClient.cmd("rpush", [list_key, message]);
+    await this.redisClient.unlockKey(list_key, lock_id);
     return true;
   }
 
@@ -44,8 +51,13 @@ class EchoMessageStorage {
       console.error(`"${time}" is invalid time, cleaning up ... `);
       let list = this.getListKey(time);
       try {
+        let lock_id = await this.redisClient.lockKey(list);
+        if (!lock_id) {
+          return res;
+        }
         await this.redisClient.cmd("zrem", [this.zset, time]);
         await this.redisClient.cmd("del", [list]);
+        await this.redisClient.unlockKey(list, lock_id);
       } catch (e) {
         console.error(e);
       }
@@ -64,23 +76,20 @@ class EchoMessageStorage {
       return messages;
     }
     if ((new Date(time)).getTime() - (new Date()).getTime() <= 0) {
-      let rem_idx = null;
-      try {
-        rem_idx = await this.redisClient.cmd("zrem", [this.zset, time]);
-      } catch (e) {
-        rem_idx = false;
-      }
-      if (!Number.isInteger(rem_idx) || rem_idx === 0) {
-        console.log("Item was't found, skipping");
+      let list = this.getListKey(time);
+      let lock_id = await this.redisClient.lockKey(list);
+      let key_exists = await this.redisClient.cmd("exists", list);
+      if (!lock_id || !key_exists) {
         return messages;
       }
-      let list = this.getListKey(time);
       try {
         messages = await this.redisClient.cmd("lrange", [list, 0, -1]);
         await this.redisClient.cmd("del", [list]);
       } catch (e) {
         messages = [];
       }
+      await this.redisClient.cmd("zrem", [this.zset, time]);
+      await this.redisClient.unlockKey(list, lock_id);
     }
     return messages;
   }

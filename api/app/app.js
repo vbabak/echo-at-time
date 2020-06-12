@@ -15,6 +15,7 @@ app.use(bodyParser());
 const router = new Router();
 
 app.context.config = config;
+app.context.dbconfig = dbconfig;
 
 // errors handling
 app.use(async (ctx, next) => {
